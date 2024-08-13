@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  mysql_db:
+    image: mysql:5.7
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: {{ DB_ROOT_PASSWORD }}
+      MYSQL_DATABASE: {{ DB_DATABASE }}
+      MYSQL_USER: {{ DB_USER }}
+      MYSQL_PASSWORD: {{ DB_PASSWORD }}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db_dump.sql:/docker-entrypoint-initdb.d/db_dump.sql
+    networks:
+      - mungemotors_net
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      MYSQL_ROOT_PASSWORD: {{ DB_ROOT_PASSWORD }}
+    ports:
+      - "8082:80"
+    networks:
+      - mungemotors_net
+
+  web_app:
+    image: php:7.4-fpm
+    container_name: web_app
+    working_dir: /var/www/html
+    volumes:
+      - ../web_app:/var/www/html
+      - ../web_app/storage:/var/www/html/storage
+    networks:
+      - mungemotors_net
+    depends_on:
+      - mysql_db
+    environment:
+      - DB_HOST={{ DB_HOST }}
+      - DB_DATABASE={{ DB_DATABASE }}
+      - DB_USERNAME={{ DB_USER }}
+      - DB_PASSWORD={{ DB_PASSWORD }}
+
+  nginx_webserver:
+    image: nginx:alpine
+    container_name: nginx-webserver
+    ports:
+      - "8081:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./web_app:/var/www/html
+    depends_on:
+      - web_app
+    networks:
+      - mungemotors_net
+
+volumes:
+  mysql_data:
+
+networks:
+  mungemotors_net:
